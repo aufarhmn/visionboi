@@ -1,7 +1,8 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import Car from "@/assets/car.png";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import io from "socket.io-client";
 
 /* 
   IMG WIDTH: 150, HEIGHT: 330 
@@ -20,6 +21,23 @@ export default function Home() {
     angle: 90,
     distance: 1000
   });
+
+  useEffect(() => {
+    const socket = io("http://localhost:5000");
+
+    socket.on("message", (data) => {
+      console.log("Received message:", data);
+      setLidarData({
+        port: data.port,
+        angle: parseInt(data.angleValue),
+        distance: parseInt(data.distanceValue)
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   // POSITION STILL NOT CALIBRATED, USING IDEAL POINT FROM MARCH HEIGHT
   const getDotPosition = (port, angle, distance) => {
