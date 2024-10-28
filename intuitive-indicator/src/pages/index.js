@@ -12,6 +12,9 @@ export default function Home() {
   // PX AND MM
   // Y AXIS STILL NOT CALIBRATED
   const SCALING_FACTOR_X = 11.45;
+  // SCALING FACTOR Y NEED TO BE CALIBRATED
+  const SCALING_FACTOR_Y = 1000 / 200;
+  console.log(SCALING_FACTOR_Y);
 
   const [lidarData, setLidarData] = useState({
     port: "COM4",
@@ -34,7 +37,7 @@ export default function Home() {
     let y = (Math.sin(angleInRadians) * distance);
 
     x = x / SCALING_FACTOR_X;
-    y = y / SCALING_FACTOR_X;
+    y = y / SCALING_FACTOR_Y;
 
     x = initialPosition + x;
 
@@ -57,20 +60,28 @@ export default function Home() {
         VisionBOI Intuitive Indicator - Capstone BO1
       </div>
       <div className="relative flex flex-row justify-center w-full h-full pt-[10%] pb-[10%]">
+        {/* LEFT DIV FOR NEXT DEV */}
+        <div className="w-[200px]">
+
+        </div>
+
         <div>
           <Image src={Car} alt="Car" width={150} height={150} />
         </div>
 
-        <div
-          style={{
-            marginTop: `${dotPosition.x}px`,
-            marginLeft: `${dotPosition.y}px`,
-            width: "20px",
-            height: "20px",
-            backgroundColor: "red",
-            borderRadius: "50%"
-          }}
-        />
+        {/* RIGHT DIV */}
+        <div className="w-[200px]">
+          <div
+            style={{
+              marginTop: `${dotPosition.x}px`,
+              marginLeft: `${dotPosition.y}px`,
+              width: "20px",
+              height: "20px",
+              backgroundColor: "red",
+              borderRadius: "50%"
+            }}
+          />
+        </div>
       </div>
     </main>
   );
