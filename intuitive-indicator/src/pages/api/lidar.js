@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     (async () => {
       for await (const [msg] of socket) {
         const data = msg.toString();
-        console.log("Received from ZMQ:", data);
+        console.log("[API] Received from ZMQ:", data);
         res.write(`data: ${data}\n\n`);
       }
     })();
