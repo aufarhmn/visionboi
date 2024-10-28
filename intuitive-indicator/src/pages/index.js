@@ -1,17 +1,12 @@
 import Image from "next/image";
-import { Inter } from "next/font/google";
-import Car from "@/assets/car.png";
-import { useState, useEffect } from "react";
 import io from "socket.io-client";
+import Car from "@/assets/car.png";
+import { Inter } from "next/font/google";
+import { useState, useEffect } from "react";
 
-/* 
-  IMG WIDTH: 150, HEIGHT: 330 
-  NISSAN MARCH: 3780 MM. SCALE FACTOR: 11.45
-  VALUE JARAK DARI DEPAN REAL / 11.45
-  SCALING FACTORS BASED ON PX AND MM
-  SCALING FACTOR Y NEED TO BE CALIBRATED
-*/
 const inter = Inter({ subsets: ["latin"] });
+
+// ADJUST THIS
 const SCALING_FACTOR_X = 11.45;
 const SCALING_FACTOR_Y = 1000 / 200;
 
