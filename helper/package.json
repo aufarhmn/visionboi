@@ -1,6 +1,13 @@
 {
+  "name": "helper",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "nodemon index.js",
+    "dev": "nodemon index.js"
+  },
   "dependencies": {
     "express": "^4.21.1",
+    "nodemon": "^3.1.7",
     "socket.io": "^4.8.1",
     "zeromq": "^6.1.1"
   }
