@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import zmq
 import threading
+import math
 
 # Version 6.3.1
 # Camera Position: Not Flipped
@@ -10,6 +11,9 @@ import threading
 # Adding Delayed Frame Extraction
 # Adding Homography Calculation
 # Using Recorded Videos
+
+# ISSUE: BLANK SPACE ON CANVAS COMPROMISES DOT NOTATION
+
 dragging = False
 dragging = False
 x_start, y_start = 0, 0
@@ -18,13 +22,31 @@ x_offset = 0
 selected_match = -1
 good_matches = []
 
-def zmq_subscriber():
+lidar_points = []
+
+def angle_to_coordinates(port, angle, distance, stitched_width, frame_height, overlap_width):
+    angle_to_radians = math.radians(angle)
+    x = math.cos(angle_to_radians) * distance
+    
+    y = frame_height // 2
+
+    if port == 'COM4':
+        x_pixel = int(x + overlap_width / 2)
+    elif port == 'COM10':
+        x_pixel = int(x + stitched_width // 2 - overlap_width / 2)
+    else:
+        print("Invalid port.")
+        return None, None
+    
+    x_pixel = max(0, min(x_pixel, stitched_width - 1))
+    return x_pixel, y
+
+def zmq_subscriber(stitched_width, frame_height, overlap_width):
+    global lidar_points
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.connect("tcp://127.0.0.1:5555")
     socket.setsockopt_string(zmq.SUBSCRIBE, "")
-
-    print("Waiting for data...")
 
     try:
         while True:
@@ -35,7 +57,13 @@ def zmq_subscriber():
                 port = port_and_data[0]
                 angleValue, distanceValue = port_and_data[1].split(',')
 
-                print(f"Received: Port={port}, Angle={angleValue}, Distance={distanceValue}")
+                angle = float(angleValue)
+                distance = float(distanceValue)
+                
+                x, y = angle_to_coordinates(port, angle, distance, stitched_width, frame_height, overlap_width)
+                if x is not None and y is not None:
+                    lidar_points.clear()
+                    lidar_points.append((x, y))
             else:
                 print("Invalid data received.")
     except KeyboardInterrupt:
@@ -178,9 +206,8 @@ def mouse_click(event, x, y, flags, param):
             print(f"Selected match {selected_match}")
 
 
-def stitch_video_frames(video1_path, video2_path, H, frame_shape):
-    global x_offset
-    x_offset = 0
+def stitch_video_frames(video1_path, video2_path, H, frame_shape, overlap_width=100):
+    global x_offset, lidar_points
     cap1 = cv2.VideoCapture(video1_path)
     cap2 = cv2.VideoCapture(video2_path)
 
@@ -189,14 +216,10 @@ def stitch_video_frames(video1_path, video2_path, H, frame_shape):
     cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-    if not cap1.isOpened():
-        print(f"Error: Video {video1_path} could not be opened.")
-        return None
-    if not cap2.isOpened():
-        print(f"Error: Video {video2_path} could not be opened.")
-        return None
-
+    height, width = frame_shape[:2]
+    stitched_width = width * 2
     cv2.namedWindow("Stitched Video")
+
     cv2.setMouseCallback("Stitched Video", mouse_drag)
 
     while True:
@@ -206,31 +229,24 @@ def stitch_video_frames(video1_path, video2_path, H, frame_shape):
         if not ret1 or not ret2:
             break
 
-        height, width = frame1.shape[:2]
-        stitched_width = width * 2
         canvas = np.zeros((height, stitched_width, 3), dtype=np.uint8)
-
         canvas[0:frame1.shape[0], 0:frame1.shape[1]] = frame1
-
         warped_frame2 = cv2.warpPerspective(frame2, H, (stitched_width, height))
 
-        overlap_mask = np.zeros_like(canvas, dtype=np.uint8)
-        overlap_mask[0:frame1.shape[0], 0:frame1.shape[1]] = 1  
-
         alpha = 0.5
-        overlap_area = (overlap_mask & (warped_frame2 > 0)).astype(np.uint8)
+        overlap_area = (canvas > 0) & (warped_frame2 > 0)
         blended_region = cv2.addWeighted(canvas, alpha, warped_frame2, 1 - alpha, 0)
-
         non_overlap_region = np.where(warped_frame2 > 0, warped_frame2, canvas)
-
         final_stitched = np.where(overlap_area, blended_region, non_overlap_region)
 
-        visible_width = frame1.shape[1]
+        for (x, y) in lidar_points:
+            cv2.circle(final_stitched, (x, y), 10, (0, 0, 255), -1)
+
+        visible_width = width
         max_offset = stitched_width - visible_width
         x_offset = max(0, min(x_offset, max_offset))
-
         visible_region = final_stitched[:, x_offset:x_offset + visible_width]
-
+        
         cv2.imshow("Stitched Video", visible_region)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -260,9 +276,11 @@ if __name__ == "__main__":
     H, frame_shape = calculate_homography_from_delayed_frames(video1_path, video2_path)
 
     print(H)
+    print(frame_shape)
 
     if H is not None:
-        zmq_thread = threading.Thread(target=zmq_subscriber)
+        stitched_width = frame_shape[1] * 2
+        zmq_thread = threading.Thread(target=zmq_subscriber, args=(stitched_width, frame_shape[0], 100))
         zmq_thread.daemon = True
         zmq_thread.start()
 
