@@ -14,8 +14,8 @@ def generate_random_data(port, zmq_socket):
 
     try:
         while True:
-            angleValue = random.randint(0, 360)
-            distanceValue = random.randint(0, 5000)
+            angleValue = random.randint(0, 180)
+            distanceValue = random.randint(0, 1000)
 
             zmq_socket.send_string(f"{port}:{angleValue},{distanceValue}")
             print(f"Published from {port}: {angleValue},{distanceValue}")
