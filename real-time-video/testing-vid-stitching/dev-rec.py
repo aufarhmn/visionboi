@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+import zmq
+import threading
 
 # Version 6.3.1
 # Camera Position: Not Flipped
@@ -15,6 +17,32 @@ x_offset = 0
 
 selected_match = -1
 good_matches = []
+
+def zmq_subscriber():
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.connect("tcp://127.0.0.1:5555")
+    socket.setsockopt_string(zmq.SUBSCRIBE, "")
+
+    print("Waiting for data...")
+
+    try:
+        while True:
+            data = socket.recv_string()
+            port_and_data = data.split(':')
+            
+            if len(port_and_data) == 2:
+                port = port_and_data[0]
+                angleValue, distanceValue = port_and_data[1].split(',')
+
+                print(f"Received: Port={port}, Angle={angleValue}, Distance={distanceValue}")
+            else:
+                print("Invalid data received.")
+    except KeyboardInterrupt:
+        print("Stopping the subscriber.")
+    finally:
+        socket.close()
+        context.term()
 
 def extract_frame_after_delay(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -226,14 +254,18 @@ def mouse_drag(event, x, y, flags, param):
         dragging = False
 
 if __name__ == "__main__":
-    video1_path = "video1.mp4"  # LEFT CAMERA
-    video2_path = "video2.mp4"  # RIGHT CAMERA
+    video1_path = "./assets/left-vid.mp4"  # LEFT CAMERA
+    video2_path = "./assets/right-vid.mp4"  # RIGHT CAMERA
 
     H, frame_shape = calculate_homography_from_delayed_frames(video1_path, video2_path)
 
     print(H)
 
     if H is not None:
+        zmq_thread = threading.Thread(target=zmq_subscriber)
+        zmq_thread.daemon = True
+        zmq_thread.start()
+
         stitch_video_frames(video1_path, video2_path, H, frame_shape)
     else:
         print("Failed to compute homography! Video stitching aborted!")
