@@ -13,6 +13,8 @@ import math
 # Using Recorded Videos
 
 # ISSUE: BLANK SPACE ON CANVAS COMPROMISES DOT NOTATION
+# FIX 1: OVERLAP WIDTH AND NON BLANK CANVAS CALCULATED
+# TODO: USE THE VALUE CALCULATED ABOVE TO REMOVE BLANK SPACE AND FIX DOT NOTATION
 
 dragging = False
 dragging = False
@@ -221,6 +223,32 @@ def stitch_video_frames(video1_path, video2_path, H, frame_shape, overlap_width=
     cv2.namedWindow("Stitched Video")
 
     cv2.setMouseCallback("Stitched Video", mouse_drag)
+
+    ret1, frame1 = cap1.read()
+    ret2, frame2 = cap2.read()
+
+    if not ret1 or not ret2:
+        print("Error: Couldn't read the video frames.")
+        cap1.release()
+        cap2.release()
+        cv2.destroyAllWindows()
+        return
+
+    warped_frame2 = cv2.warpPerspective(frame2, H, (stitched_width, height))
+
+    gray_frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+    gray_warped_frame2 = cv2.cvtColor(warped_frame2, cv2.COLOR_BGR2GRAY)
+
+    diff = cv2.absdiff(gray_frame1[:, -100:], gray_warped_frame2[:, :100])
+    _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
+
+    overlap_column = np.argmax(np.mean(thresh, axis=0) < 30)
+    overlap_width = overlap_column if overlap_column > 0 else 100
+
+    print(f"Calculated overlap width: {overlap_width}")
+
+    non_blank_width = frame1.shape[1] + warped_frame2.shape[1] - overlap_width
+    print(f"Stitched width without blank canvas: {non_blank_width}")
 
     while True:
         ret1, frame1 = cap1.read()
