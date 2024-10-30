@@ -26,6 +26,7 @@ good_matches = []
 
 lidar_points = []
 
+#  FIX THIS CALCULATION
 def angle_to_coordinates(port, angle, distance, stitched_width, frame_height, overlap_width):
     angle_to_radians = math.radians(angle)
     x = math.cos(angle_to_radians) * distance
@@ -315,7 +316,7 @@ if __name__ == "__main__":
 
     if H is not None:
         stitched_width = frame_shape[1] * 2
-        zmq_thread = threading.Thread(target=zmq_subscriber, args=(stitched_width, frame_shape[0], 100))
+        zmq_thread = threading.Thread(target=zmq_subscriber, args=(stitched_width, frame_shape[0], overlap_width))
         zmq_thread.daemon = True
         zmq_thread.start()
 
