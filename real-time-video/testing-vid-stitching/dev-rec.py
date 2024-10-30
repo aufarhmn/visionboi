@@ -137,12 +137,31 @@ def calculate_homography_from_delayed_frames(video1_path, video2_path):
 
             H, _ = cv2.findHomography(inliers_dst_pts, inliers_src_pts, cv2.RANSAC, 5.0)
 
+            calculate_overlap_width(H, img1, img2)
+
             return H, img1.shape
         else:
             print("Not enough matches found to compute homography.")
             return None, None
     else:
         return None, None 
+
+def calculate_overlap_width(H, img1, img2):
+    global overlap_width
+    height, width = img1.shape[:2]
+
+    img2_corners = np.float32([
+        [0, 0], [width, 0], [width, height], [0, height]
+    ]).reshape(-1, 1, 2)
+
+    projected_corners = cv2.perspectiveTransform(img2_corners, H)
+
+    overlap_x_coords = [pt[0][0] for pt in projected_corners]
+
+    overlap_width = width - min(overlap_x_coords)
+
+    print(f"Calculated overlap width: {overlap_width}")
+    return overlap_width
 
 def draw_matches(img1, kp1, img2, kp2):
     global matched_keypoints_img
@@ -207,9 +226,8 @@ def mouse_click(event, x, y, flags, param):
         if min_distance < 10:
             print(f"Selected match {selected_match}")
 
-
-def stitch_video_frames(video1_path, video2_path, H, frame_shape, overlap_width=100):
-    global x_offset, lidar_points
+def stitch_video_frames(video1_path, video2_path, H, frame_shape):
+    global x_offset, lidar_points, non_blank_width
     cap1 = cv2.VideoCapture(video1_path)
     cap2 = cv2.VideoCapture(video2_path)
 
@@ -221,8 +239,6 @@ def stitch_video_frames(video1_path, video2_path, H, frame_shape, overlap_width=
     height, width = frame_shape[:2]
     stitched_width = width * 2
     cv2.namedWindow("Stitched Video")
-
-    cv2.setMouseCallback("Stitched Video", mouse_drag)
 
     ret1, frame1 = cap1.read()
     ret2, frame2 = cap2.read()
@@ -236,19 +252,10 @@ def stitch_video_frames(video1_path, video2_path, H, frame_shape, overlap_width=
 
     warped_frame2 = cv2.warpPerspective(frame2, H, (stitched_width, height))
 
-    gray_frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
-    gray_warped_frame2 = cv2.cvtColor(warped_frame2, cv2.COLOR_BGR2GRAY)
-
-    diff = cv2.absdiff(gray_frame1[:, -100:], gray_warped_frame2[:, :100])
-    _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
-
-    overlap_column = np.argmax(np.mean(thresh, axis=0) < 30)
-    overlap_width = overlap_column if overlap_column > 0 else 100
-
-    print(f"Calculated overlap width: {overlap_width}")
-
-    non_blank_width = frame1.shape[1] + warped_frame2.shape[1] - overlap_width
+    non_blank_width = int(frame1.shape[1] + warped_frame2.shape[1] - overlap_width)
     print(f"Stitched width without blank canvas: {non_blank_width}")
+
+    cv2.setMouseCallback("Stitched Video", mouse_drag)
 
     while True:
         ret1, frame1 = cap1.read()
