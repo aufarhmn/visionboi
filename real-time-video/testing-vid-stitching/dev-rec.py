@@ -24,10 +24,18 @@ x_offset = 0
 selected_match = -1
 good_matches = []
 
-lidar_points = []
+# USING TWO LIDAR ARRAYS
+left_lidar_points = []
+right_lidar_points = []
 
 #  FIX THIS CALCULATION
 def angle_to_coordinates(port, angle, distance, stitched_width, frame_height, overlap_width):
+    stitched_width = non_blank_width
+    overlap_width = int(overlap_width)
+
+    print(f"Stitched width: {stitched_width}")
+    print(f"Overlap width: {overlap_width}")
+
     angle_to_radians = math.radians(angle)
     x = math.cos(angle_to_radians) * distance
     
@@ -45,7 +53,7 @@ def angle_to_coordinates(port, angle, distance, stitched_width, frame_height, ov
     return x_pixel, y
 
 def zmq_subscriber(stitched_width, frame_height, overlap_width):
-    global lidar_points
+    global left_lidar_points, right_lidar_points
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.connect("tcp://127.0.0.1:5555")
@@ -65,8 +73,15 @@ def zmq_subscriber(stitched_width, frame_height, overlap_width):
                 
                 x, y = angle_to_coordinates(port, angle, distance, stitched_width, frame_height, overlap_width)
                 if x is not None and y is not None:
-                    lidar_points.clear()
-                    lidar_points.append((x, y))
+                    left_lidar_points.clear()
+                    right_lidar_points.clear()
+                    if port == 'COM4':
+                        left_lidar_points.append((x, y))
+                    elif port == 'COM10':
+                        right_lidar_points.append((x, y))
+                    else:
+                        print("Invalid port.")
+
             else:
                 print("Invalid data received.")
     except KeyboardInterrupt:
@@ -228,14 +243,14 @@ def mouse_click(event, x, y, flags, param):
             print(f"Selected match {selected_match}")
 
 def stitch_video_frames(video1_path, video2_path, H, frame_shape):
-    global x_offset, lidar_points, non_blank_width
+    global x_offset, left_lidar_points, non_blank_width, right_lidar_points
     cap1 = cv2.VideoCapture(video1_path)
     cap2 = cv2.VideoCapture(video2_path)
 
-    cap1.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap1.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
     height, width = frame_shape[:2]
     stitched_width = width * 2
@@ -275,7 +290,7 @@ def stitch_video_frames(video1_path, video2_path, H, frame_shape):
         non_overlap_region = np.where(warped_frame2 > 0, warped_frame2, canvas)
         final_stitched = np.where(overlap_area, blended_region, non_overlap_region)
 
-        for (x, y) in lidar_points:
+        for (x, y) in left_lidar_points or right_lidar_points:
             cv2.circle(final_stitched, (x, y), 10, (0, 0, 255), -1)
 
         visible_width = width
