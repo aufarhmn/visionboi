@@ -1,8 +1,10 @@
+# python script_name.py path/to/left-vid.mp4 path/to/right-vid.mp4
 import cv2
 import numpy as np
 import zmq
 import threading
 import math
+import argparse
 
 # Version 6.3.1
 # Camera Position: Not Flipped
@@ -299,8 +301,13 @@ def mouse_drag(event, x, y, flags, param):
         dragging = False
 
 if __name__ == "__main__":
-    video1_path = "./assets/left-vid.mp4"  # LEFT CAMERA
-    video2_path = "./assets/right-vid.mp4"  # RIGHT CAMERA
+    parser = argparse.ArgumentParser(description="Stitch two video streams from left and right cameras.")
+    parser.add_argument("video1_path", type=str, help="Path to the left camera video file.")
+    parser.add_argument("video2_path", type=str, help="Path to the right camera video file.")
+    args = parser.parse_args()
+    
+    video1_path = args.video1_path
+    video2_path = args.video2_path
 
     H, frame_shape = calculate_homography_from_delayed_frames(video1_path, video2_path)
 
