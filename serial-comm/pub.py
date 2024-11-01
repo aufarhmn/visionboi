@@ -1,14 +1,12 @@
+# python script_nam.py COM4 COM10 --baudrate 9600
 import zmq
 import serial
 import threading
+import argparse
 
-# Configuration for ZMQ and Serial Communication
 context = zmq.Context()
 socket = context.socket(zmq.PUB)
 socket.bind("tcp://127.0.0.1:5555")
-
-serial_ports = ['COM4', 'COM10']
-baudrate = 115200
 
 def read_serial_data(port, baudrate, zmq_socket):
     ser = serial.Serial(
@@ -20,7 +18,7 @@ def read_serial_data(port, baudrate, zmq_socket):
     if not ser.is_open:
         ser.open()
 
-    print(f"Reading serial data from {port}...")
+    print(f"Reading serial data from {port} with baudrate {baudrate}...")
 
     try:
         while True:
@@ -37,18 +35,27 @@ def read_serial_data(port, baudrate, zmq_socket):
     finally:
         ser.close()
 
-threads = []
+def main():
+    parser = argparse.ArgumentParser(description="Read serial data and publish via ZMQ.")
+    parser.add_argument("ports", nargs="+", help="Specify COM ports (e.g., COM4 COM10)")
+    parser.add_argument("--baudrate", type=int, default=115200, help="Set baudrate for serial communication (default: 115200)")
+    args = parser.parse_args()
 
-for port in serial_ports:
-    thread = threading.Thread(target=read_serial_data, args=(port, baudrate, socket))
-    threads.append(thread)
-    thread.start()
+    threads = []
 
-try:
-    for thread in threads:
-        thread.join()
-except KeyboardInterrupt:
-    print("Stopping the program.")
-finally:
-    socket.close()
-    context.term()
+    for port in args.ports:
+        thread = threading.Thread(target=read_serial_data, args=(port, args.baudrate, socket))
+        threads.append(thread)
+        thread.start()
+
+    try:
+        for thread in threads:
+            thread.join()
+    except KeyboardInterrupt:
+        print("Stopping the program.")
+    finally:
+        socket.close()
+        context.term()
+
+if __name__ == "__main__":
+    main()
