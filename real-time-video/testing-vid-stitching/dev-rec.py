@@ -11,11 +11,6 @@ import math
 # Adding Delayed Frame Extraction
 # Adding Homography Calculation
 # Using Recorded Videos
-
-# ISSUE: BLANK SPACE ON CANVAS COMPROMISES DOT NOTATION
-# FIX 1: OVERLAP WIDTH AND NON BLANK CANVAS CALCULATED
-# TODO: USE THE VALUE CALCULATED ABOVE TO REMOVE BLANK SPACE AND FIX DOT NOTATION
-
 dragging = False
 dragging = False
 x_start, y_start = 0, 0
@@ -24,35 +19,15 @@ x_offset = 0
 selected_match = -1
 good_matches = []
 
-# USING TWO LIDAR ARRAYS
 left_lidar_points = []
 right_lidar_points = []
 
-#  FIX THIS CALCULATION
-def angle_to_coordinates(port, angle, distance, stitched_width, frame_height, overlap_width):
-    stitched_width = non_blank_width
-    overlap_width = int(overlap_width)
-
-    print(f"Stitched width: {stitched_width}")
-    print(f"Overlap width: {overlap_width}")
-
+def angle_to_distance(angle, distance):
     angle_to_radians = math.radians(angle)
     x = math.cos(angle_to_radians) * distance
-    
-    y = frame_height // 2
+    return abs(x) / 1000
 
-    if port == 'COM4':
-        x_pixel = int(x + overlap_width / 2)
-    elif port == 'COM10':
-        x_pixel = int(x + stitched_width // 2 - overlap_width / 2)
-    else:
-        print("Invalid port.")
-        return None, None
-    
-    x_pixel = max(0, min(x_pixel, stitched_width - 1))
-    return x_pixel, y
-
-def zmq_subscriber(stitched_width, frame_height, overlap_width):
+def zmq_subscriber():
     global left_lidar_points, right_lidar_points
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
@@ -71,14 +46,14 @@ def zmq_subscriber(stitched_width, frame_height, overlap_width):
                 angle = float(angleValue)
                 distance = float(distanceValue)
                 
-                x, y = angle_to_coordinates(port, angle, distance, stitched_width, frame_height, overlap_width)
-                if x is not None and y is not None:
+                x = angle_to_distance(angle, distance)
+                if x is not None:
                     left_lidar_points.clear()
                     right_lidar_points.clear()
                     if port == 'COM4':
-                        left_lidar_points.append((x, y))
+                        left_lidar_points.append(x)
                     elif port == 'COM10':
-                        right_lidar_points.append((x, y))
+                        right_lidar_points.append(x)
                     else:
                         print("Invalid port.")
 
@@ -290,8 +265,11 @@ def stitch_video_frames(video1_path, video2_path, H, frame_shape):
         non_overlap_region = np.where(warped_frame2 > 0, warped_frame2, canvas)
         final_stitched = np.where(overlap_area, blended_region, non_overlap_region)
 
-        for (x, y) in left_lidar_points or right_lidar_points:
-            cv2.circle(final_stitched, (x, y), 10, (0, 0, 255), -1)
+        for points in (left_lidar_points, right_lidar_points):
+            for x in points:
+                warning_message = f"Warning! Object detected at {x:.2f} meters"
+                text_position = (50, 50)
+                cv2.putText(final_stitched, warning_message, text_position, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
 
         visible_width = width
         max_offset = stitched_width - visible_width
@@ -331,7 +309,7 @@ if __name__ == "__main__":
 
     if H is not None:
         stitched_width = frame_shape[1] * 2
-        zmq_thread = threading.Thread(target=zmq_subscriber, args=(stitched_width, frame_shape[0], overlap_width))
+        zmq_thread = threading.Thread(target=zmq_subscriber)
         zmq_thread.daemon = True
         zmq_thread.start()
 
