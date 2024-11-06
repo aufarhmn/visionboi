@@ -38,7 +38,7 @@ export default function Home() {
   const getDotPosition = (port, angle, distance) => {
     let initialPosition = 0;
     if (port === "COM4") {
-      initialPosition = 82.5;
+      initialPosition = 262;
     } else if (port === "COM10") {
       initialPosition = 247.5;
     }

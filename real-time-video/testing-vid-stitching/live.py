@@ -50,11 +50,11 @@ def zmq_subscriber():
                 
                 x = angle_to_distance(angle, distance)
                 if x is not None:
-                    left_lidar_points.clear()
-                    right_lidar_points.clear()
-                    if port == 'COM4':
+                    if port == 'COM4' and x < 1.0:
+                        left_lidar_points.clear()
                         left_lidar_points.append(x)
-                    elif port == 'COM10':
+                    elif port == 'COM10' and x < 1.0:
+                        right_lidar_points.clear()
                         right_lidar_points.append(x)
                     else:
                         print("Invalid port.")
@@ -70,8 +70,8 @@ def zmq_subscriber():
 def extract_frame_after_delay(video_path):
     cap = cv2.VideoCapture(video_path)
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
     if not cap.isOpened():
         print(f"Error: Video {video_path} could not be opened.")
