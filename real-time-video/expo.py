@@ -38,6 +38,7 @@ def zmq_subscriber():
             port_and_data = data.split(':')
             
             if len(port_and_data) == 2:
+                lidar_points.clear()
                 angleValue, distanceValue = port_and_data[1].split(',')
 
                 angle = float(angleValue)
@@ -47,10 +48,9 @@ def zmq_subscriber():
                     math.radians(angle)
 
                     y = distance * math.sin(angle)
-                    y = y / 1000
+                    y = float(y / 1000)
 
-                    if y < 1.0:
-                        lidar_points.append(abs(y))
+                    lidar_points.append(abs(y))
                 
     except KeyboardInterrupt:
         print("Stopping the subscriber.")
@@ -89,11 +89,11 @@ def show_video_with_distance(video_path):
         x_offset = max(0, min(x_offset, width - window_width))
         visible_frame = undistorted_frame1[:, x_offset:x_offset + window_width]
 
-        if lidar_points:
-            x = lidar_points[-1]
-            warning_message = f"Warning! Object detected at {x:.2f} meters"
-            position = (50, 50)
-            cv2.putText(visible_frame, warning_message, position, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
+        for y in lidar_points:
+            if y < 1:
+                warning_message = f"Warning! Object detected at {y:.2f} meters"
+                position = (50, 50)
+                cv2.putText(visible_frame, warning_message, position, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
         
         cv2.imshow("Video with Distance", visible_frame)
 
