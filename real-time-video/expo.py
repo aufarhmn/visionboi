@@ -16,14 +16,14 @@ x_offset = 0
 lidar_points = []
 
 # Camera Parameters
-DIM=(1920, 1080)
-K=np.array([[1336.4921919893268, 0.0, 908.8692451447415], [0.0, 1340.0325057841567, 466.10657810710325], [0.0, 0.0, 1.0]])
-D=np.array([[0.019735576742026275], [0.2600139930451915], [-1.1954519511846629], [0.8408293625138502]])
-
-# def angle_to_distance(angle, distance):
-#     angle_to_radians = math.radians(angle)
-#     x = math.cos(angle_to_radians) * distance
-#     return abs(x) / 1000
+DIM = (1920, 1080)
+K = np.array([[1336.4921919893268, 0.0, 908.8692451447415], 
+              [0.0, 1340.0325057841567, 466.10657810710325], 
+              [0.0, 0.0, 1.0]])
+D = np.array([[0.019735576742026275], 
+              [0.2600139930451915], 
+              [-1.1954519511846629], 
+              [0.8408293625138502]])
 
 def zmq_subscriber():
     global lidar_points
@@ -38,20 +38,20 @@ def zmq_subscriber():
             port_and_data = data.split(':')
             
             if len(port_and_data) == 2:
-                port = port_and_data[0]
                 angleValue, distanceValue = port_and_data[1].split(',')
 
                 angle = float(angleValue)
                 distance = float(distanceValue)
                 
-                # x = angle_to_distance(angle, distance)
-                x = distance
-                if x is not None:
-                    lidar_points.append(x)
-                    lidar_points.clear()
+                if angle >= 10 and angle <= 170:
+                    math.radians(angle)
 
-            else:
-                print("Invalid data received.")
+                    y = distance * math.sin(angle)
+                    y = y / 1000
+
+                    if y < 1.0:
+                        lidar_points.append(abs(y))
+                
     except KeyboardInterrupt:
         print("Stopping the subscriber.")
     finally:
@@ -69,7 +69,7 @@ def show_video_with_distance(video_path):
     cv2.setMouseCallback("Video with Distance", mouse_drag)
 
     if not cap1.isOpened():
-        print("Error: Couldn't open the video file.")
+        print("Error: Couldn't open the video source.")
         cap1.release()
         cv2.destroyAllWindows()
         return
@@ -89,12 +89,12 @@ def show_video_with_distance(video_path):
         x_offset = max(0, min(x_offset, width - window_width))
         visible_frame = undistorted_frame1[:, x_offset:x_offset + window_width]
 
-        for points in (lidar_points):
-            for x in points:
-                warning_message = f"Warning! Object detected at {x:.2f} meters"
-                position = (50, 50)
-                cv2.putText(visible_frame, warning_message, position, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
-
+        if lidar_points:
+            x = lidar_points[-1]
+            warning_message = f"Warning! Object detected at {x:.2f} meters"
+            position = (50, 50)
+            cv2.putText(visible_frame, warning_message, position, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
+        
         cv2.imshow("Video with Distance", visible_frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -119,14 +119,13 @@ def mouse_drag(event, x, y, flags, param):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Show from one module with the LIDAR attached")
-    parser.add_argument("video_path", type=str, help="Path to the left camera video file.")
+    parser.add_argument("video_path", type=int, help="Path to video file or camera index.")
     args = parser.parse_args()
     
-    # Real-Time Video
-    video_path = args.video_path
-    show_video_with_distance(video_path)
-
-    # ZMQ Subscriber
+    # ZMQ Subscriber Thread
     zmq_thread = threading.Thread(target=zmq_subscriber)
     zmq_thread.daemon = True
     zmq_thread.start()
+
+    # Display Video with Distance
+    show_video_with_distance(args.video_path)
