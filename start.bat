@@ -31,8 +31,8 @@ start /b npm run dev > NUL 2>&1
 popd
 
 echo Running real-time video stitching service...
-pushd real-time-video\testing-vid-stitching
-start /b python dev-rec.py %CAMERA_ID_1% > NUL 2>&1
+pushd real-time-video
+start /b python expo.py %CAMERA_ID_1% > NUL 2>&1
 popd
 
 echo All services have been started in the background!

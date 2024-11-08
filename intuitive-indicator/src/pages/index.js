@@ -14,21 +14,23 @@ const SCALING_FACTOR_Y = parseInt(1000 / 200);
 const INITIAL_POSITION = parseInt(1890 / SCALING_FACTOR_X);
 
 export default function Home() {
-  const [lidarData, setLidarData] = useState({
-    port: "",
-    angle: 180,
-    distance: 1000
-  });
+  const [dotPositions, setDotPositions] = useState([]);
 
   useEffect(() => {
     const socket = io("http://localhost:5000");
 
     socket.on("message", (data) => {
       console.log("Received message:", data);
-      setLidarData({
-        port: data.port,
-        angle: parseInt(data.angleValue),
-        distance: parseInt(data.distanceValue)
+
+      const newPosition = getDotPosition(
+        data.port,
+        parseInt(data.angleValue),
+        parseInt(data.distanceValue)
+      );
+
+      setDotPositions((prevPositions) => {
+        const updatedPositions = [...prevPositions, newPosition];
+        return updatedPositions.slice(-5);
       });
     });
 
@@ -51,12 +53,6 @@ export default function Home() {
     return { x, y };
   };
 
-  const dotPosition = getDotPosition(
-    lidarData.port,
-    lidarData.angle,
-    lidarData.distance
-  );
-
   return (
     <main
       className={`flex min-h-screen flex-col items-center justify-start p-12 ${inter.className}`}
@@ -65,7 +61,7 @@ export default function Home() {
         VisionBOI Intuitive Indicator - Capstone BO1
       </div>
       <div className="relative flex flex-row justify-center w-full h-full pt-[10%] pb-[10%]">
-        {/* LEFT DIV FOR NEXT DEV */}
+        {/* LEFT DIV */}
         <div className="w-[200px]"></div>
 
         <div>
@@ -73,17 +69,21 @@ export default function Home() {
         </div>
 
         {/* RIGHT DIV */}
-        <div className="w-[200px]">
-          <div
-            style={{
-              marginTop: `${dotPosition.x}px`,
-              marginLeft: `${dotPosition.y}px`,
-              width: "20px",
-              height: "20px",
-              backgroundColor: "red",
-              borderRadius: "50%"
-            }}
-          />
+        <div className="w-[200px] relative">
+          {dotPositions.map((position, index) => (
+            <div
+              key={index}
+              style={{
+                position: "absolute",
+                top: `${position.x}px`,
+                left: `${position.y}px`,
+                width: "15px",
+                height: "15px",
+                backgroundColor: "red",
+                borderRadius: "50%"
+              }}
+            />
+          ))}
         </div>
       </div>
     </main>
