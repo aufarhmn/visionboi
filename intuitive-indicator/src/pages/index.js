@@ -6,14 +6,17 @@ import { useState, useEffect } from "react";
 
 const inter = Inter({ subsets: ["latin"] });
 
-// ADJUST THIS
+// X -> March height divided by Image height
+// Y -> Minimum thresshold in mm divided by container width
+// INITIAL_POSITION -> Initial position 
 const SCALING_FACTOR_X = 11.45;
-const SCALING_FACTOR_Y = 1000 / 200;
+const SCALING_FACTOR_Y = parseInt(1000 / 200);
+const INITIAL_POSITION = parseInt(1890 / SCALING_FACTOR_X);
 
 export default function Home() {
   const [lidarData, setLidarData] = useState({
-    port: "COM4",
-    angle: 90,
+    port: "",
+    angle: 180,
     distance: 1000
   });
 
@@ -34,15 +37,7 @@ export default function Home() {
     };
   }, []);
 
-  // POSITION STILL NOT CALIBRATED, USING IDEAL POINT FROM MARCH HEIGHT
   const getDotPosition = (port, angle, distance) => {
-    let initialPosition = 0;
-    if (port === "COM4") {
-      initialPosition = 262;
-    } else if (port === "COM10") {
-      initialPosition = 247.5;
-    }
-
     const angleInRadians = (angle * Math.PI) / 180;
 
     let x = Math.cos(angleInRadians) * distance;
@@ -51,7 +46,7 @@ export default function Home() {
     x = x / SCALING_FACTOR_X;
     y = y / SCALING_FACTOR_Y;
 
-    x = initialPosition + x;
+    x = INITIAL_POSITION + x;
 
     return { x, y };
   };
